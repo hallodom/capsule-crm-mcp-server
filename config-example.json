@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "capsule-crm": {
+      "command": "node",
+      "args": ["/absolute/path/to/capsule-crm-mcp-server/src/index.js"],
+      "description": "Capsule CRM integration for managing contacts, opportunities, projects, and tasks"
+    }
+  }
+} 
