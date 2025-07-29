@@ -52,22 +52,136 @@ npm run dev
 
 ### Configuration with MCP Clients
 
-Add this server to your MCP client configuration. For example, with Claude Desktop:
+#### Step 1: Get Your Capsule CRM API Token
+
+1. Log into your Capsule CRM account
+2. Go to **Account Settings** > **API Tokens** 
+3. Create a new API token or copy an existing one
+4. Keep this token secure - you'll add it to your MCP configuration
+
+#### Step 2: Find Your Absolute Path
+
+You need the **absolute path** to your `index.js` file. In your project directory, run:
+
+```bash
+pwd && echo "$(pwd)/src/index.js"
+```
+
+This will show something like: `/Users/your-username/src/capsule-mcp-dom/src/index.js`
+
+#### Step 3A: Configure Claude Desktop
+
+**Find your Claude Desktop config file:**
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`  
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+**Option A: If you have NO existing MCP servers**, create/edit the file with:
 
 ```json
 {
   "mcpServers": {
     "capsule-crm": {
       "command": "node",
-      "args": ["/path/to/capsule-crm-mcp-server/src/index.js"]
+      "args": ["/Users/your-username/src/capsule-mcp-dom/src/index.js"],
+      "env": {
+        "CAPSULE_API_TOKEN": "your-capsule-api-token-here"
+      }
     }
   }
 }
 ```
 
+**Option B: If you ALREADY have MCP servers**, add capsule-crm to your existing configuration:
+
+```json
+{
+  "mcpServers": {
+    "firecrawl-mcp": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "your-api-key"
+      }
+    },
+    "capsule-crm": {
+      "command": "node",
+      "args": ["/Users/your-username/src/capsule-mcp-dom/src/index.js"],
+      "env": {
+        "CAPSULE_API_TOKEN": "your-capsule-api-token-here"
+      }
+    }
+  }
+}
+```
+
+Then **restart Claude Desktop completely** for the changes to take effect.
+
+#### Step 3B: Configure Cursor
+
+**Find your Cursor MCP config file:**
+
+- **macOS**: `~/.cursor/mcp.json`
+- **Windows**: `%USERPROFILE%/.cursor/mcp.json`
+- **Linux**: `~/.cursor/mcp.json`
+
+**Option A: If you have NO existing MCP servers**, create/edit the file with:
+
+```json
+{
+  "mcpServers": {
+    "capsule-crm": {
+      "command": "node",
+      "args": ["/Users/your-username/src/capsule-mcp-dom/src/index.js"],
+      "env": {
+        "CAPSULE_API_TOKEN": "your-capsule-api-token-here"
+      }
+    }
+  }
+}
+```
+
+**Option B: If you ALREADY have MCP servers** (like firecrawl-mcp), add capsule-crm to your existing configuration:
+
+```json
+{
+  "mcpServers": {
+    "firecrawl-mcp": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "your-api-key"
+      }
+    },
+    "capsule-crm": {
+      "command": "node",
+      "args": ["/Users/your-username/src/capsule-mcp-dom/src/index.js"],
+      "env": {
+        "CAPSULE_API_TOKEN": "your-capsule-api-token-here"
+      }
+    }
+  }
+}
+```
+
+Then **restart Cursor completely** for the changes to take effect.
+
+#### Step 3: Verify the Server is Connected
+
+**In Claude Desktop**: You should see the Capsule CRM tools available in the tool list.
+
+**In Cursor**: Open the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and look for MCP-related commands, or use the AI chat and you should see Capsule CRM tools available.
+
+Test the connection with:
+- `capsule_set_api_token` to authenticate
+- `capsule_test_connection` to verify it's working
+
 ### Authentication
 
-Before using any Capsule CRM tools, you must set your API token:
+**Recommended:** Set your API token in the MCP configuration (see configuration steps above). The server will automatically initialize with your token.
+
+**Alternative:** If you didn't set the token in configuration, you can set it manually:
 
 ```javascript
 // Use the capsule_set_api_token tool
@@ -255,6 +369,44 @@ The server provides detailed error messages for common issues:
 - **404 Not Found** - Entity not found
 - **400 Bad Request** - Invalid request parameters
 - **429 Too Many Requests** - Rate limit exceeded
+
+## Troubleshooting
+
+### Server Not Appearing in Claude Desktop
+
+1. **Check the config file path**: Make sure you're editing the right file
+2. **Verify JSON syntax**: Use a JSON validator to check your config
+3. **Check file permissions**: Ensure Claude can read the config file
+4. **Restart Claude Desktop**: Completely quit and restart the app
+5. **Check logs**: Look for error messages in Claude Desktop's console
+
+### Common Configuration Issues
+
+**Wrong path**: The path must be **absolute**, not relative:
+- ❌ `./src/index.js` (relative)
+- ✅ `/Users/dom.briggs/src/capsule-mcp-dom/src/index.js` (absolute)
+
+**JSON syntax errors**: Make sure commas and brackets are correct:
+```json
+{
+  "mcpServers": {
+    "server1": { ... },
+    "server2": { ... }  // No comma after last item
+  }
+}
+```
+
+**File not executable**: Ensure Node.js can run the file:
+```bash
+node /path/to/your/src/index.js  # Should start without errors
+```
+
+### Getting Help
+
+If the server doesn't start:
+1. Test it manually: `node /path/to/your/src/index.js`
+2. Check Node.js version: `node --version` (needs 18.0.0+)
+3. Verify dependencies: `npm install` in the project directory
 
 ## Development
 

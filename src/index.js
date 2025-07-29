@@ -34,6 +34,15 @@ class CapsuleCRMServer {
     this.tools = new Map();
     
     this.setupHandlers();
+    this.setupAuthenticationTools(); // Set up auth tools immediately
+    this.setupTools(); // Load all tools upfront
+    
+    // Initialize client with environment variable if available
+    const apiToken = process.env.CAPSULE_API_TOKEN;
+    if (apiToken) {
+      this.initializeClient(apiToken);
+      console.log('Capsule CRM client initialized with environment variable');
+    }
   }
 
   setupHandlers() {
@@ -49,8 +58,19 @@ class CapsuleCRMServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       
-      if (!this.capsuleClient) {
-        throw new Error('Capsule CRM client not initialized. Please provide an API token.');
+      // Allow certain tools to run without client initialization
+      const allowedWithoutClient = ['capsule_set_api_token', 'capsule_test_connection'];
+      
+      if (!this.capsuleClient && !allowedWithoutClient.includes(name)) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error: Capsule CRM client not initialized. Please use 'capsule_set_api_token' with your API token first before using ${name}.`,
+            },
+          ],
+          isError: true,
+        };
       }
 
       const tool = this.tools.get(name);
@@ -75,26 +95,7 @@ class CapsuleCRMServer {
     this.setupTools();
   }
 
-  setupTools() {
-    // Clear existing tools
-    this.tools.clear();
-
-    // Add party (contacts/organizations) tools
-    const partyTools = createPartyTools();
-    partyTools.forEach(tool => this.tools.set(tool.name, tool));
-
-    // Add opportunity tools
-    const opportunityTools = createOpportunityTools();
-    opportunityTools.forEach(tool => this.tools.set(tool.name, tool));
-
-    // Add project tools
-    const projectTools = createProjectTools();
-    projectTools.forEach(tool => this.tools.set(tool.name, tool));
-
-    // Add task tools
-    const taskTools = createTaskTools();
-    taskTools.forEach(tool => this.tools.set(tool.name, tool));
-
+  setupAuthenticationTools() {
     // Add authentication tool
     this.tools.set('capsule_set_api_token', {
       name: 'capsule_set_api_token',
@@ -132,10 +133,18 @@ class CapsuleCRMServer {
       description: 'Test the connection to Capsule CRM API',
       inputSchema: {
         type: 'object',
-        properties: {},
-        required: [],
+        properties: {
+          random_string: {
+            type: 'string',
+            description: 'Dummy parameter for no-parameter tools',
+          },
+        },
+        required: ['random_string'],
       },
       execute: async (args, client) => {
+        if (!client) {
+          throw new Error('API token not set. Please use capsule_set_api_token first.');
+        }
         try {
           const currentUser = await client.getCurrentUser();
           return {
@@ -153,10 +162,34 @@ class CapsuleCRMServer {
     });
   }
 
+  setupTools() {
+    // Don't clear existing tools (preserve authentication tools)
+    // Clear only non-auth tools if they exist
+    const authTools = ['capsule_set_api_token', 'capsule_test_connection'];
+    for (const [name, tool] of this.tools.entries()) {
+      if (!authTools.includes(name)) {
+        this.tools.delete(name);
+      }
+    }
+
+    // Add party (contacts/organizations) tools
+    const partyTools = createPartyTools();
+    partyTools.forEach(tool => this.tools.set(tool.name, tool));
+
+    // Add opportunity tools
+    const opportunityTools = createOpportunityTools();
+    opportunityTools.forEach(tool => this.tools.set(tool.name, tool));
+
+    // Add project tools
+    const projectTools = createProjectTools();
+    projectTools.forEach(tool => this.tools.set(tool.name, tool));
+
+    // Add task tools
+    const taskTools = createTaskTools();
+    taskTools.forEach(tool => this.tools.set(tool.name, tool));
+  }
+
   async run() {
-    // Initialize with basic tools (including auth)
-    this.setupTools();
-    
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     
